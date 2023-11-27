@@ -20,5 +20,10 @@ GuiApp::GuiApp(int argc, launcher::CommandLineParser& commandLineParser, QLocalS
         this->quit();
     });
     window->show();
+
+    // Multiple MainWindows is likely just fine; as those don't launch a separate process/thread..
+    auto anotherWindow = new gui::MainWindow();
+    anotherWindow->setWindowTitle(anotherWindow->windowTitle() + " - not primary MainWindow");
+    anotherWindow->show();
 }
 } // namespace mu::application
