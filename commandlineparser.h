@@ -66,16 +66,20 @@ private:
     std::vector<QByteArray> argvUTF8Q; // Storing the actual data
     std::vector<char*> argvUTF8; // Storing the raw pointer to it to be argv compatible
 #endif
+    QStringList args; // Internal list of the args used for actual parsing
 
     QCommandLineParser m_parser;
     struct Options m_options;
     framework::IApplication::RunMode m_runMode = framework::IApplication::RunMode::GuiApp;
 public:
     CommandLineParser(int argc, char** argv);
+    CommandLineParser(const QStringList& args);
     [[nodiscard]] int argumentCount() const;
     [[nodiscard]] char** argumentValues() const;
     [[nodiscard]] QStringList argumentsAsQStringList(void) const;
     [[nodiscard]] framework::IApplication::RunMode runMode(void) const;
+
+    [[nodiscard]] std::string scorePath(void) const;
 
     void processApplication(const QCoreApplication& app);
 

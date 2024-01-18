@@ -1,29 +1,24 @@
 #include "guiapp.h"
 
 #include "mainwindow.h"
+#include "processmanager.h"
 
 #include <QApplication>
 
 namespace mu::application {
-GuiApp::GuiApp(int argc, launcher::CommandLineParser& commandLineParser, QLocalSocket& ipcSocket)
-    : QApplication(argc, commandLineParser.argumentValues())
+GuiApp::GuiApp(launcher::CommandLineParser& commandLineParser, ProcessManager* const parent)
+    : m_processManager(parent)
 {
     QApplication::setApplicationName("ProcessTree - GUI");
-    QApplication::setApplicationVersion("1.0.0");
+    QApplication::setApplicationVersion("2.0.1");
 
-    commandLineParser.processApplication(*this);
+    // Access commandLineParser options as required
 
     auto window = new gui::MainWindow();
-    connect(window, &gui::MainWindow::aboutToClose, this, [this, &ipcSocket](){
-        ipcSocket.close();
-        ipcSocket.disconnectFromServer();
-        this->quit();
+    window->connect(window, &gui::MainWindow::aboutToClose, [this](){
+        this->m_processManager->handleChildQuit(this);
     });
+    window->setWindowTitle(window->windowTitle() + " - " + commandLineParser.scorePath().c_str());
     window->show();
-
-    // Multiple MainWindows is likely just fine; as those don't launch a separate process/thread..
-    auto anotherWindow = new gui::MainWindow();
-    anotherWindow->setWindowTitle(anotherWindow->windowTitle() + " - not primary MainWindow");
-    anotherWindow->show();
 }
 } // namespace mu::application

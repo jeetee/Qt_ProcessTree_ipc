@@ -15,6 +15,14 @@ CommandLineParser::CommandLineParser(int argc, char** argv)
 {
     ensureUTF8Encoding(argc, argv);
     initOptions();
+    args = argumentsAsQStringList();
+    parse();
+}
+
+CommandLineParser::CommandLineParser(const QStringList& args)
+{
+    initOptions();
+    this->args = args;
     parse();
 }
 
@@ -50,6 +58,11 @@ CommandLineParser::CommandLineParser(int argc, char** argv)
 [[nodiscard]] framework::IApplication::RunMode CommandLineParser::runMode(void) const
 {
     return m_runMode;
+}
+
+[[nodiscard]] std::string CommandLineParser::scorePath(void) const
+{
+    return m_options.startup.scorePath.value_or("");
 }
 
 void CommandLineParser::processApplication(const QCoreApplication& app)
@@ -205,7 +218,6 @@ void CommandLineParser::parse(void)
 {
     using mu::framework::IApplication;
 
-    QStringList args = argumentsAsQStringList();
     m_parser.parse(args);
 
     auto floatValue = [this](const QString& name) -> std::optional<float> {

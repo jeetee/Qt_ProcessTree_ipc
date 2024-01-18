@@ -12,11 +12,13 @@
 
 namespace mu::application {
 ProcessManager::ProcessManager(launcher::CommandLineParser& commandLineParser, int argc)
-    : QCoreApplication(argc, commandLineParser.argumentValues())
+    : QApplication(argc, commandLineParser.argumentValues())
 {
     setApplicationName("ProcessTree - ProcessManager");
-    setApplicationVersion("1.0.0");
+    setApplicationVersion("2.0.0");
     qInfo() << "Created" << applicationName() << applicationVersion();
+
+    commandLineParser.processApplication(*this);
 
     if (!m_server.listen(ipc::serverName())) {
         qWarning() << "Failed to launch ipc server. Shutting down.";
@@ -30,7 +32,7 @@ ProcessManager::ProcessManager(launcher::CommandLineParser& commandLineParser, i
     connect(&m_server, &QLocalServer::newConnection, this, &ProcessManager::handleClientConnected);
 
     // We were launched not just to be a server, but because someone wanted to end up with a GUI app
-    launchChildProcess(commandLineParser.argumentsAsQStringList());
+    launchChildProcess(commandLineParser);
 }
 
 void ProcessManager::handleClientConnected()
@@ -41,35 +43,14 @@ void ProcessManager::handleClientConnected()
     std::stringstream message(childSocket->readAll().toStdString());
     std::string command;
     message >> command;
-    if (command == ipc::REQ_IS_CHILD) {
-        qint64 pid;
-        message >> pid;
-        qDebug() << "Checking if" << pid << "for a new connection was launched by us.";
-        auto childIt = std::find_if(std::begin(m_childProcesses), std::end(m_childProcesses),
-                                    [&pid](const auto& childProcess){
-            return (childProcess.process != nullptr) && (childProcess.process->processId() == pid);
+    if (command == ipc::REQ_MAKE_CHILD) {
+        qDebug() << "Re-launching separate Gui launch as a child";
+        QStringList arguments;
+        arguments << "GuiApp"; // Inject a dummy application name, as normal argument parsing expects [0] to be the executable
+        while (message >> command) {
+            arguments << command.c_str();
         }
-                                    );
-        if (childIt != std::end(m_childProcesses)) {
-            qDebug() << " it was, monitoring CHILD for further ipc comms";
-            childIt->socket = childSocket;
-            childSocket->write(ipc::REPLY_ACK_OK);
-            connect(childSocket, &QLocalSocket::readyRead, this, [this, childIt](){
-                handleChildReadyRead(*childIt);
-            });
-            connect(childSocket, &QLocalSocket::disconnected, this, [this, childIt](){
-                handleChildDisconnected(*childIt);
-            });
-        } else {
-            qDebug() << " it is not, monitoring SOCKET for further ipc comms";
-            childSocket->write(ipc::REPLY_NACK_NOK);
-            connect(childSocket, &QLocalSocket::readyRead, this, [this, childSocket](){
-                handleOrphanReadyRead(childSocket);
-            });
-            connect(childSocket, &QLocalSocket::disconnected, this, [this, childSocket](){
-                handleOrphanDisconnected(childSocket);
-            });
-        }
+        launchChildProcess(arguments);
     } else {
         // Wrong command - disconnect them
         qInfo() << "Received unexpected command from new connection:\n"
@@ -79,51 +60,26 @@ void ProcessManager::handleClientConnected()
     }
 }
 
-void ProcessManager::handleChildReadyRead(const struct child& child)
+void ProcessManager::handleChildQuit(GuiApp* const childGuiApp)
 {
-    qDebug() << "handleChildReadyRead for" << child.process->processId();
-}
-
-void ProcessManager::handleChildDisconnected(const struct child& child)
-{
-    qDebug() << "Child disconnected, dropping child" << child.process->processId();
-    m_childProcesses.removeOne(child);
-    if (m_childProcesses.empty()) {
+    qDebug() << "Child closing, removing it from my childlist";
+    m_children.erase(std::remove(std::begin(m_children), std::end(m_children), childGuiApp));
+    if (m_children.empty()) {
         qDebug() << "Last child is gone, we're done";
         quit();
     }
 }
 
-void ProcessManager::handleOrphanReadyRead(QLocalSocket* const socket)
+void ProcessManager::launchChildProcess(launcher::CommandLineParser& commandLineParser)
 {
-    std::stringstream message(socket->readAll().toStdString());
-    qDebug() << "handleOrphanReadyRead" << message.str().c_str();
-
-    std::string command;
-    message >> command;
-    if (command == ipc::REQ_MAKE_CHILD) {
-        qDebug() << "Re-launch it as a child";
-        QStringList arguments;
-        while (message >> command) {
-            arguments << command.c_str();
-        }
-        launchChildProcess(arguments);
-    } else {
-        qDebug() << "Orphan sent unhandled command" << command.c_str() << "\nIgnoring it.";
-    }
-}
-
-void ProcessManager::handleOrphanDisconnected(QLocalSocket* const socket)
-{
-    Q_UNUSED(socket);
-    qDebug() << "an Orphan Disconnected";
+    auto newChild = new GuiApp(commandLineParser, this);
+    m_children.append({ /*.app = */ newChild });
+    qDebug() << "Launched child process " << m_children.length();
 }
 
 void ProcessManager::launchChildProcess(const QStringList& arguments)
 {
-    auto newChildProcess = new QProcess(this);
-    m_childProcesses.append({ /*.process = */ newChildProcess, /*.socket = */ nullptr });
-    newChildProcess->start(QCoreApplication::applicationFilePath(), arguments);
-    qDebug() << "Launched child process" << newChildProcess->processId();
+    launcher::CommandLineParser argsParser(arguments);
+    launchChildProcess(argsParser);
 }
 } // namespace mu::application

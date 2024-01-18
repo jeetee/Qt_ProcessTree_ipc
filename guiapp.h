@@ -4,13 +4,16 @@
 #include "commandlineparser.h"
 
 #include <QApplication>
-#include <QLocalSocket>
 
 namespace mu::application {
-class GuiApp : public QApplication
+class ProcessManager;
+
+class GuiApp
 {
+private:
+    ProcessManager* const m_processManager;
 public:
-    GuiApp(int argc, launcher::CommandLineParser& commandLineParser, QLocalSocket& ipcSocket);
+    GuiApp(launcher::CommandLineParser& commandLineParser, ProcessManager* const parent);
 };
 } // namespace mu::application
 

@@ -2,6 +2,7 @@
 #define MU_APPLICATION_PROCESSMANAGER_H
 
 #include "commandlineparser.h"
+#include "guiapp.h"
 
 #include <QCoreApplication>
 #include <QList>
@@ -11,34 +12,25 @@
 #include <QStringList>
 
 namespace mu::application {
-class ProcessManager : public QCoreApplication
+class ProcessManager : public QApplication
 {
 public:
     ProcessManager(launcher::CommandLineParser& commandLineParser, int argc);
 
 private:
-    struct child {
-        QProcess* const process;
-        QLocalSocket* socket;
-        bool operator==(const struct child& other) const
-        {
-            return (process == other.process) && (socket == other.socket);
-        }
-    };
-    QList<struct child> m_childProcesses;
+    QList<GuiApp*> m_children;
     QLocalServer m_server;
 
 private slots:
     void handleClientConnected();
 
 private:
-    void handleChildReadyRead(const struct child& child);
-    void handleChildDisconnected(const struct child& child);
 
-    void handleOrphanReadyRead(QLocalSocket* const socket);
-    void handleOrphanDisconnected(QLocalSocket* const socket);
-
+    void launchChildProcess(launcher::CommandLineParser& commandLineParser);
     void launchChildProcess(const QStringList& arguments);
+
+public:
+    void handleChildQuit(GuiApp* const childGuiApp);
 };
 } // namespace mu::application
 
