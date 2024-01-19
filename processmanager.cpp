@@ -66,6 +66,7 @@ void ProcessManager::handleChildQuit(GuiApp* const childGuiApp)
     m_children.erase(std::remove(std::begin(m_children), std::end(m_children), childGuiApp));
     if (m_children.empty()) {
         qDebug() << "Last child is gone, we're done";
+        m_server.close();
         quit();
     }
 }

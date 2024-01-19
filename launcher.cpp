@@ -37,8 +37,9 @@ int Launcher::Launch(CommandLineParser& commandLineParser)
         QCoreApplication* app = new application::ProcessManager(commandLineParser, commandLineParser.argumentCount());
         qInfo() << "Running ProcessManager...";
 
-        // NOLINTNEXTLINE(clang-analyzer-cplusplus.NewDeleteLeaks)
-        return app->exec();
+        auto ret = app->exec();
+        delete app;
+        return ret;
     }
     return 0;
 }
