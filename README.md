@@ -4,6 +4,7 @@ A launcher process experiment for Qt to force launched instances as child instan
 The goal is to investigate wether this helps out with the Dock Icon wildgrow on MacOS for a multi-instance application.
 See https://github.com/musescore/MuseScore/issues/12647 for context.
 
+This diagram applies to the attempted architecture for v1; it does not reflect the current state of code:
 ![Program Start Sequence](MS-ProcessTree.svg)
 
 As this projects builds on/tests for/borrows from MuseScore, it is under the same GPL3 license.
